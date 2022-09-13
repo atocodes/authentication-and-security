@@ -4,8 +4,8 @@ const express = require('express')
 const ejs = require('ejs')
 const body_parser = require('body-parser')
 const mongoose = require('mongoose')
-const md5 = require('md5')
-
+const bcrypt = require('bcrypt')
+const saltRound = 10
 const app = express()
 
 
@@ -38,16 +38,13 @@ app.get('/register',(req,res)=>{
 
 app.post('/login',(req,res)=>{
     const email = req.body.username
-    const password = md5(req.body.password)
+    const password = req.body.password
 
     User.findOne({email:email},(err,foundedUser)=>{
         if(foundedUser){
-            console.log(foundedUser.password,md5(password))
-            if(foundedUser.password === password){
-                res.render('secrets')
-            }else{
-                res.redirect('/login')
-            }
+            bcrypt.compare(password, foundedUser.password,(err,result)=>{
+                if(result)res.render('secrets')
+            })
         }else{
             console.log(err)
         }
@@ -56,17 +53,21 @@ app.post('/login',(req,res)=>{
 
 app.post('/register',(req,res)=>{
     const email = req.body.username
-    const password = md5(req.body.password)
+    const password = req.body.password
 
-    const newUser = new User({
-        email:email,
-        password:password
+    bcrypt.hash(password,saltRound,(err,hash)=>{
+        
+        const newUser = new User({
+            email:email,
+            password:hash
+        })
+    
+        newUser.save((err)=>{
+            !err
+            ?res.render('secrets')
+            :console.log(err)
+        })
     })
 
-    newUser.save((err)=>{
-        !err
-        ?res.render('secrets')
-        :console.log(err)
-    })
 })
 app.listen(3000,()=>console.log('server started at port 3000'))
